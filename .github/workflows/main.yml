@@ -1,0 +1,101 @@
+name: "Build & Release" #name of workflow
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+jobs: # telling what jobs we need to perform
+  build:  # Specify the building name and machine
+    name: Build & Release
+    runs-on: ubuntu-latest  # here we selected ubuntu machine to build our project
+
+    steps: # steps to perform in the build
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Java # setup java environment
+        uses: actions/setup-java@v3.12.0
+        with:
+          distribution: 'oracle' # specify the java distribution we want to use
+          java-version: '17' # specify the version of java we want to use
+      
+      - name: Set up Flutter # setup flutter environment
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6' # specify the version of flutter we want to use
+          channel: 'stable' # specify the channel of flutter we want to use
+
+      - name: Install dependencies # install dependencies
+        run: flutter pub get
+
+#This step decodes the base64 encoded keystore using a secret stored in your GitHub repository.
+      - name: Decode Keystore # decode the keystore file
+        run: echo "$KEYSTORE" | base64 --decode > android/app/keystore.jks # decode the keystore file and save it to the specified location
+
+#This step creates a key.properties file with the necessary properties for signing the app. The properties are populated using secrets stored in your GitHub repository.
+      - name: Create key.properties
+        run: |
+          echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+          echo "storeFile=keystore.jks" >> android/key.properties 
+
+      - name: Build APK # build the apk file
+        run: flutter build apk --release
+
+      - name: Build appBundle # build the app bundle file
+        run: flutter build appbundle
+
+#This step builds the IPA file for your iOS application without code signing using the flutter build ipa --no-codesign command.
+      - name: Build IPA
+        run: flutter build ipa --no-codesign #--no-codesign flag allows you to build the IPA without requiring a valid Apple Developer account for local development.
+  
+  #This step compresses the iOS build directory into a tar.gz file for easier storage and transfer.
+      - name: Compress Archives and IPAs
+        run: |
+          cd build
+          tar -czf ios_build.tar.gz ios
+
+#This step uses the upload-artifact action to upload the build artifacts (APK, AAB, and compressed iOS build) for later download. This makes the build outputs accessible from the GitHub Actions run page.
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: Releases
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+            build/ios_build.tar.g    
+
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        run: |
+          version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
+          echo "VERSION=$version" >> $GITHUB_ENV
+
+      - name: Check if Tag Exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+      - name: Modify Tag
+        if: env.TAG_EXISTS == 'true'
+        id: modify_tag
+        run: |
+          new_version="${{ env.VERSION }}-build-${{ github.run_number }}"
+          echo "VERSION=$new_version" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab,build/ios_build.tar.gz"
+          tag: v${{ env.VERSION }}
+          token: ${{ secrets.TOKEN }}
