@@ -27,7 +27,7 @@ jobs: # telling what jobs we need to perform
       - name: Set up Flutter # setup flutter environment
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0' # specify the version of flutter we want to use
+          flutter-version: '3.41.6' # specify the version of flutter we want to use
           channel: 'stable' # specify the channel of flutter we want to use
 
       - name: Install dependencies # install dependencies
