@@ -52,14 +52,14 @@ jobs: # telling what jobs we need to perform
         run: flutter build appbundle
 
 #This step builds the IPA file for your iOS application without code signing using the flutter build ipa --no-codesign command.
-      - name: Build IPA
-        run: flutter build ipa --no-codesign #--no-codesign flag allows you to build the IPA without requiring a valid Apple Developer account for local development.
+      # - name: Build IPA
+      #   run: flutter build ipa --no-codesign #--no-codesign flag allows you to build the IPA without requiring a valid Apple Developer account for local development.
   
   #This step compresses the iOS build directory into a tar.gz file for easier storage and transfer.
-      - name: Compress Archives and IPAs
-        run: |
-          cd build
-          tar -czf ios_build.tar.gz ios
+      # - name: Compress Archives and IPAs
+      #   run: |
+      #     cd build
+      #     tar -czf ios_build.tar.gz ios
 
 #This step uses the upload-artifact action to upload the build artifacts (APK, AAB, and compressed iOS build) for later download. This makes the build outputs accessible from the GitHub Actions run page.
       - name: Upload Artifacts
@@ -68,8 +68,8 @@ jobs: # telling what jobs we need to perform
           name: Releases
           path: |
             build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-            build/ios_build.tar.gz    
+            # build/app/outputs/bundle/release/app-release.aab
+            # build/ios_build.tar.gz    
 
       - name: Extract version from pubspec.yaml
         id: extract_version
@@ -96,6 +96,6 @@ jobs: # telling what jobs we need to perform
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab,build/ios_build.tar.gz"
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab" #build/ios_build.tar.gz
           tag: v${{ env.VERSION }}
           token: ${{ secrets.TOKEN }}
