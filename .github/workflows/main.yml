@@ -13,6 +13,8 @@ jobs: # telling what jobs we need to perform
   build:  # Specify the building name and machine
     name: Build & Release
     runs-on: ubuntu-latest  # here we selected ubuntu machine to build our project
+    permissions:
+      contents: write
 
     steps: # steps to perform in the build
       - name: Checkout Repository
